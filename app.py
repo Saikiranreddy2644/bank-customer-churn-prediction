@@ -78,10 +78,41 @@ def explain_prediction(inputs: dict, probability: float, no_geography: bool) -> 
     return reasons
 
 
-st.set_page_config(page_title="Bank Churn Prediction", layout="wide")
+st.set_page_config(page_title="Bank Churn Prediction", layout="wide", page_icon="🏦")
 
-st.title("Bank Customer Churn Prediction")
-st.caption("Enter customer details to predict churn risk using the trained model.")
+st.markdown(
+    """
+    <style>
+    .main { background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%); }
+    .hero {
+        background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+        padding: 28px 32px; border-radius: 16px; color: white;
+        box-shadow: 0 10px 30px rgba(37, 99, 235, 0.25); margin-bottom: 24px;
+    }
+    .hero h1 { color: white; margin: 0; font-size: 2rem; }
+    .hero p { color: #dbeafe; margin: 6px 0 0 0; }
+    .card {
+        background: white; padding: 20px 24px; border-radius: 14px;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08); margin-bottom: 16px;
+        border: 1px solid #e2e8f0;
+    }
+    .metric-card {
+        background: white; border-radius: 14px; padding: 18px 22px;
+        border-left: 5px solid #2563eb; box-shadow: 0 4px 14px rgba(15,23,42,0.06);
+    }
+    .metric-card h2 { margin: 0; font-size: 1.8rem; color: #0f172a; }
+    .metric-card p { margin: 0; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+    .risk-high { border-left-color: #dc2626; }
+    .risk-low { border-left-color: #16a34a; }
+    div[data-testid="stForm"] { background: white; border-radius: 14px; padding: 20px; box-shadow: 0 4px 14px rgba(15,23,42,0.06); border: 1px solid #e2e8f0; }
+    </style>
+    <div class="hero">
+        <h1>Bank Customer Churn Prediction</h1>
+        <p>Enter customer details below to estimate churn risk using the trained ML model.</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 model_bundle = load_model(str(MODEL_PATH))
 model = model_bundle["pipeline"]
@@ -90,6 +121,8 @@ threshold = model_bundle["threshold"]
 no_geo_bundle = load_model(str(NO_GEO_MODEL_PATH))
 no_geo_model = no_geo_bundle["pipeline"]
 no_geo_threshold = no_geo_bundle["threshold"]
+
+st.subheader("📋 Customer Details")
 
 with st.form("customer_form"):
     col1, col2, col3 = st.columns(3)
@@ -141,22 +174,32 @@ if submitted:
 
     st.divider()
 
+    risk_class = "risk-high" if prediction == 1 else "risk-low"
     metric_col1, metric_col2 = st.columns(2)
-    metric_col1.metric("Churn Probability", f"{probability * 100:.2f}%")
-    metric_col2.metric("Prediction", "Likely to Churn" if prediction == 1 else "Not Likely to Churn")
+    with metric_col1:
+        st.markdown(
+            f"<div class='metric-card {risk_class}'><p>Churn Probability</p><h2>{probability * 100:.2f}%</h2></div>",
+            unsafe_allow_html=True,
+        )
+    with metric_col2:
+        label = "Likely to Churn" if prediction == 1 else "Not Likely to Churn"
+        st.markdown(
+            f"<div class='metric-card {risk_class}'><p>Prediction</p><h2>{label}</h2></div>",
+            unsafe_allow_html=True,
+        )
+    st.write("")
 
     if prediction == 1:
         st.error("This customer is predicted as high churn risk.")
-        st.subheader("Possible Reasons")
     else:
         st.success("This customer is predicted as lower churn risk.")
-        st.subheader("Customer Risk Notes")
 
+    st.subheader("Possible Reasons" if prediction == 1 else "Customer Risk Notes")
     for reason in explain_prediction(user_inputs, probability, no_geography):
-        st.write(f"- {reason}")
+        st.markdown(f"<div class='card'>{reason}</div>", unsafe_allow_html=True)
 
-    st.subheader("Engineered Features Used Internally")
-    st.dataframe(customer.drop(columns=["Geography"] if no_geography else []), use_container_width=True)
+    with st.expander("🔧 Engineered features used internally"):
+        st.dataframe(customer.drop(columns=["Geography"] if no_geography else []), use_container_width=True)
 
 
 @st.cache_data
@@ -176,7 +219,8 @@ def churn_rate_by(df: pd.DataFrame, column: str) -> pd.DataFrame:
 
 
 st.divider()
-st.header("Churn Insights from the Dataset")
+st.header("📊 Churn Insights from the Dataset")
+
 df_clean = load_clean_data()
 
 overall = round(df_clean["Exited"].mean() * 100, 2)
