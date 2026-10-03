@@ -1,0 +1,21 @@
+feature,importance,model
+numeric__Age,0.3742738747528454,Gradient Boosting
+numeric__NumOfProducts,0.3372514557611807,Gradient Boosting
+numeric__IsActiveMember,0.12311984238593726,Gradient Boosting
+numeric__Balance,0.056608009005496104,Gradient Boosting
+numeric__salary_to_balance_ratio,0.024427087289450183,Gradient Boosting
+numeric__CreditScore,0.021823192866120035,Gradient Boosting
+numeric__EstimatedSalary,0.01709487356074835,Gradient Boosting
+categorical__Gender_Male,0.011522240030175459,Gradient Boosting
+categorical__Gender_Female,0.0106404102331528,Gradient Boosting
+categorical__age_group_Mid (31-50),0.008740614142895413,Gradient Boosting
+numeric__products_per_tenure,0.004588685580854922,Gradient Boosting
+categorical__age_group_Senior (51+),0.004147569420024897,Gradient Boosting
+numeric__Tenure,0.0034884414012250737,Gradient Boosting
+numeric__HasCrCard,0.001034786367030528,Gradient Boosting
+numeric__zero_balance_flag,0.0009278595564722715,Gradient Boosting
+categorical__credit_score_band_Excellent,0.00031105764639054986,Gradient Boosting
+categorical__age_group_Young (18-30),0.0,Gradient Boosting
+categorical__credit_score_band_Fair,0.0,Gradient Boosting
+categorical__credit_score_band_Good,0.0,Gradient Boosting
+categorical__credit_score_band_Poor,0.0,Gradient Boosting

@@ -1,24 +1,24 @@
 feature,importance,model
-numeric__Age,0.2271085323569861,Random Forest
-numeric__NumOfProducts,0.178581343732597,Random Forest
-numeric__Balance,0.0754177397975376,Random Forest
-numeric__EstimatedSalary,0.058099060649162725,Random Forest
-numeric__CreditScore,0.055449733817979976,Random Forest
-numeric__products_per_tenure,0.054531972128480516,Random Forest
-numeric__IsActiveMember,0.052070353085752835,Random Forest
-numeric__salary_to_balance_ratio,0.051683808173452465,Random Forest
-categorical__age_group_Senior (51+),0.0380532324462532,Random Forest
-categorical__Geography_Germany,0.03600598048213365,Random Forest
-numeric__Tenure,0.034530422258174924,Random Forest
-categorical__age_group_Young (18-30),0.025210516470076345,Random Forest
-categorical__Gender_Female,0.01663552773797051,Random Forest
-categorical__Gender_Male,0.015501668772597715,Random Forest
-categorical__Geography_France,0.014555119842213854,Random Forest
-categorical__age_group_Mid (31-50),0.012576434457160385,Random Forest
-numeric__zero_balance_flag,0.012246067295725334,Random Forest
-numeric__HasCrCard,0.00922732944738325,Random Forest
-categorical__Geography_Spain,0.008862182793447719,Random Forest
-categorical__credit_score_band_Good,0.006708717544010908,Random Forest
-categorical__credit_score_band_Fair,0.006418413408684044,Random Forest
-categorical__credit_score_band_Poor,0.00534235137583844,Random Forest
-categorical__credit_score_band_Excellent,0.005183491926380413,Random Forest
+numeric__Age,0.35210565938990757,Gradient Boosting
+numeric__NumOfProducts,0.3174060232642502,Gradient Boosting
+numeric__IsActiveMember,0.11110779165292914,Gradient Boosting
+numeric__Balance,0.07030304740881343,Gradient Boosting
+categorical__Geography_Germany,0.04955163138269311,Gradient Boosting
+numeric__salary_to_balance_ratio,0.02297673851716294,Gradient Boosting
+numeric__CreditScore,0.019575975046912636,Gradient Boosting
+numeric__EstimatedSalary,0.01661590824417195,Gradient Boosting
+categorical__Gender_Female,0.012248557683537817,Gradient Boosting
+categorical__age_group_Mid (31-50),0.008452223568251455,Gradient Boosting
+categorical__Gender_Male,0.006438888397750067,Gradient Boosting
+numeric__products_per_tenure,0.004263660998971256,Gradient Boosting
+categorical__age_group_Senior (51+),0.0039006218203698636,Gradient Boosting
+numeric__Tenure,0.0020705710910554564,Gradient Boosting
+categorical__Geography_France,0.001534263378580814,Gradient Boosting
+numeric__zero_balance_flag,0.0005087111865364491,Gradient Boosting
+numeric__HasCrCard,0.0004463704584043929,Gradient Boosting
+categorical__Geography_Spain,0.0002719444644532165,Gradient Boosting
+categorical__credit_score_band_Fair,0.00020094564446983574,Gradient Boosting
+categorical__credit_score_band_Excellent,2.0466400778481708e-05,Gradient Boosting
+categorical__age_group_Young (18-30),0.0,Gradient Boosting
+categorical__credit_score_band_Good,0.0,Gradient Boosting
+categorical__credit_score_band_Poor,0.0,Gradient Boosting

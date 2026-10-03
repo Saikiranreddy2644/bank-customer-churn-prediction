@@ -1,7 +1,7 @@
 CREATE DATABASE IF NOT EXISTS bank_churn_db;
 USE bank_churn_db;
 
-CREATE TABLE customers_churn (
+CREATE TABLE IF NOT EXISTS customer_churn (
     CustomerId BIGINT,
     CreditScore INT,
     Geography VARCHAR(50),
@@ -21,8 +21,4 @@ CREATE TABLE customers_churn (
     salary_to_balance_ratio DECIMAL(12,4)
 );
 
-select * from churn_clean limit 10;
-
-DROP TABLE customers_churn;
-RENAME TABLE churn_clean TO customer_churn;
-SELECT count(*) FROM customer_churn;
+SELECT COUNT(*) AS total_rows FROM customer_churn;

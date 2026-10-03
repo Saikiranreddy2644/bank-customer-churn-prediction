@@ -1,64 +1,41 @@
+import sys
 from pathlib import Path
 
 import joblib
 import pandas as pd
 import streamlit as st
 
-
 ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT / "src"))
+
+from features import add_features, get_age_group, get_credit_score_band
+
 MODEL_PATH = ROOT / "models" / "best_churn_model.pkl"
+NO_GEO_MODEL_PATH = ROOT / "models" / "best_churn_model_no_geo.pkl"
 
 
 @st.cache_resource
-def load_model():
-    return joblib.load(MODEL_PATH)
-
-
-def get_age_group(age: int) -> str:
-    if age <= 30:
-        return "Young (18-30)"
-    if age <= 50:
-        return "Mid (31-50)"
-    return "Senior (51+)"
-
-
-def get_credit_score_band(credit_score: int) -> str:
-    if credit_score <= 579:
-        return "Poor"
-    if credit_score <= 669:
-        return "Fair"
-    if credit_score <= 739:
-        return "Good"
-    return "Excellent"
+def load_model(path: str):
+    return joblib.load(path)
 
 
 def build_customer_record(inputs: dict) -> pd.DataFrame:
-    balance = inputs["Balance"]
-    salary = inputs["EstimatedSalary"]
-    tenure = inputs["Tenure"]
-
     record = {
         "CreditScore": inputs["CreditScore"],
         "Geography": inputs["Geography"],
         "Gender": inputs["Gender"],
         "Age": inputs["Age"],
-        "Tenure": tenure,
-        "Balance": balance,
+        "Tenure": inputs["Tenure"],
+        "Balance": inputs["Balance"],
         "NumOfProducts": inputs["NumOfProducts"],
         "HasCrCard": inputs["HasCrCard"],
         "IsActiveMember": inputs["IsActiveMember"],
-        "EstimatedSalary": salary,
-        "zero_balance_flag": int(balance == 0),
-        "age_group": get_age_group(inputs["Age"]),
-        "credit_score_band": get_credit_score_band(inputs["CreditScore"]),
-        "products_per_tenure": round(inputs["NumOfProducts"] / (tenure + 1), 3),
-        "salary_to_balance_ratio": round(balance / (salary + 1), 4),
+        "EstimatedSalary": inputs["EstimatedSalary"],
     }
+    return add_features(pd.DataFrame([record]))
 
-    return pd.DataFrame([record])
 
-
-def explain_prediction(inputs: dict, probability: float) -> list[str]:
+def explain_prediction(inputs: dict, probability: float, no_geography: bool) -> list[str]:
     reasons = []
 
     if inputs["IsActiveMember"] == 0:
@@ -88,10 +65,8 @@ def explain_prediction(inputs: dict, probability: float) -> list[str]:
     elif inputs["NumOfProducts"] == 1:
         reasons.append("Customer uses only one product, so cross-selling may improve retention.")
 
-    if inputs["Geography"] == "Germany":
+    if not no_geography and inputs["Geography"] == "Germany":
         reasons.append("Germany showed higher churn tendency in the dataset analysis.")
-    elif inputs["Geography"] == "Other":
-        reasons.append("This region was not present in the training data, so the geography effect is treated as unknown.")
 
     if probability >= 0.7:
         reasons.append("The model confidence for churn is high.")
@@ -106,16 +81,23 @@ def explain_prediction(inputs: dict, probability: float) -> list[str]:
 st.set_page_config(page_title="Bank Churn Prediction", layout="wide")
 
 st.title("Bank Customer Churn Prediction")
-st.caption("Enter customer details to predict churn risk using the trained Random Forest model.")
+st.caption("Enter customer details to predict churn risk using the trained model.")
 
-model = load_model()
+model_bundle = load_model(str(MODEL_PATH))
+model = model_bundle["pipeline"]
+threshold = model_bundle["threshold"]
+
+no_geo_bundle = load_model(str(NO_GEO_MODEL_PATH))
+no_geo_model = no_geo_bundle["pipeline"]
+no_geo_threshold = no_geo_bundle["threshold"]
 
 with st.form("customer_form"):
     col1, col2, col3 = st.columns(3)
 
     with col1:
         credit_score = st.number_input("Credit Score", min_value=300, max_value=850, value=650)
-        geography = st.selectbox("Geography", ["France", "Germany", "Spain", "Other"])
+        geography_options = ["France", "Germany", "Spain", "Not specified"]
+        geography = st.selectbox("Geography", geography_options)
         gender = st.selectbox("Gender", ["Female", "Male"])
         age = st.number_input("Age", min_value=18, max_value=100, value=40)
 
@@ -132,9 +114,10 @@ with st.form("customer_form"):
     submitted = st.form_submit_button("Predict Churn")
 
 if submitted:
+    no_geography = geography == "Not specified"
     user_inputs = {
         "CreditScore": int(credit_score),
-        "Geography": geography,
+        "Geography": None if no_geography else geography,
         "Gender": gender,
         "Age": int(age),
         "Tenure": int(tenure),
@@ -145,9 +128,16 @@ if submitted:
         "EstimatedSalary": float(salary),
     }
 
-    customer = build_customer_record(user_inputs)
-    prediction = int(model.predict(customer)[0])
-    probability = float(model.predict_proba(customer)[0][1])
+    customer = build_customer_record({**user_inputs, "Geography": "France" if no_geography else geography})
+
+    if no_geography:
+        model_input = customer.drop(columns=["Geography"])
+        probability = float(no_geo_model.predict_proba(model_input)[0][1])
+        prediction = int(probability >= no_geo_threshold)
+        st.info("No geography provided — using the geography-free model variant.")
+    else:
+        probability = float(model.predict_proba(customer)[0][1])
+        prediction = int(probability >= threshold)
 
     st.divider()
 
@@ -162,14 +152,8 @@ if submitted:
         st.success("This customer is predicted as lower churn risk.")
         st.subheader("Customer Risk Notes")
 
-    if geography == "Other":
-        st.warning(
-            "The model was trained only on France, Germany, and Spain. "
-            "For other regions, the prediction can still run, but it should be treated as an estimate."
-        )
-
-    for reason in explain_prediction(user_inputs, probability):
+    for reason in explain_prediction(user_inputs, probability, no_geography):
         st.write(f"- {reason}")
 
     st.subheader("Engineered Features Used Internally")
-    st.dataframe(customer, use_container_width=True)
+    st.dataframe(customer.drop(columns=["Geography"] if no_geography else []), use_container_width=True)

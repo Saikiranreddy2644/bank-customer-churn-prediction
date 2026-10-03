@@ -1,0 +1,5 @@
+model,threshold,accuracy,precision,recall,f1_score,roc_auc,true_negative,false_positive,false_negative,true_positive,cv_roc_auc
+Gradient Boosting,0.25,0.8084,0.5224,0.6352,0.5733,0.8333,1351,234,147,256,0.8483
+Random Forest,0.55,0.8149,0.538,0.6154,0.5741,0.831,1372,213,155,248,0.8416
+Decision Tree,0.6,0.8038,0.514,0.5906,0.5497,0.8021,1360,225,165,238,0.814
+Logistic Regression,0.55,0.7399,0.4089,0.6352,0.4976,0.7595,1215,370,147,256,0.7491
