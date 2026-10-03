@@ -3,12 +3,13 @@ from pathlib import Path
 
 import joblib
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from features import add_features, get_age_group, get_credit_score_band
+from features import add_features
 
 MODEL_PATH = ROOT / "models" / "best_churn_model.pkl"
 NO_GEO_MODEL_PATH = ROOT / "models" / "best_churn_model_no_geo.pkl"
@@ -17,6 +18,11 @@ NO_GEO_MODEL_PATH = ROOT / "models" / "best_churn_model_no_geo.pkl"
 @st.cache_resource
 def load_model(path: str):
     return joblib.load(path)
+
+
+@st.cache_data
+def load_clean_data() -> pd.DataFrame:
+    return pd.read_csv(ROOT / "data" / "processed" / "churn_clean.csv")
 
 
 def build_customer_record(inputs: dict) -> pd.DataFrame:
@@ -106,138 +112,172 @@ st.markdown(
     .risk-low { border-left-color: #16a34a; }
     div[data-testid="stForm"] { background: white; border-radius: 14px; padding: 20px; box-shadow: 0 4px 14px rgba(15,23,42,0.06); border: 1px solid #e2e8f0; }
     </style>
-    <div class="hero">
-        <h1>Bank Customer Churn Prediction</h1>
-        <p>Enter customer details below to estimate churn risk using the trained ML model.</p>
-    </div>
     """,
     unsafe_allow_html=True,
 )
 
-model_bundle = load_model(str(MODEL_PATH))
-model = model_bundle["pipeline"]
-threshold = model_bundle["threshold"]
+page = st.sidebar.radio("Navigation", ["🔮 Churn Prediction", "📊 Churn Insights"])
 
-no_geo_bundle = load_model(str(NO_GEO_MODEL_PATH))
-no_geo_model = no_geo_bundle["pipeline"]
-no_geo_threshold = no_geo_bundle["threshold"]
-
-st.subheader("📋 Customer Details")
-
-with st.form("customer_form"):
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        credit_score = st.number_input("Credit Score", min_value=300, max_value=850, value=650)
-        geography_options = ["France", "Germany", "Spain", "Not specified"]
-        geography = st.selectbox("Geography", geography_options)
-        gender = st.selectbox("Gender", ["Female", "Male"])
-        age = st.number_input("Age", min_value=18, max_value=100, value=40)
-
-    with col2:
-        tenure = st.number_input("Tenure", min_value=0, max_value=10, value=3)
-        balance = st.number_input("Balance", min_value=0.0, value=75000.0, step=1000.0)
-        products = st.selectbox("Number of Products", [1, 2, 3, 4])
-
-    with col3:
-        has_card = st.selectbox("Has Credit Card", ["Yes", "No"])
-        active_member = st.selectbox("Is Active Member", ["Yes", "No"])
-        salary = st.number_input("Estimated Salary", min_value=0.0, value=100000.0, step=1000.0)
-
-    submitted = st.form_submit_button("Predict Churn")
-
-if submitted:
-    no_geography = geography == "Not specified"
-    user_inputs = {
-        "CreditScore": int(credit_score),
-        "Geography": None if no_geography else geography,
-        "Gender": gender,
-        "Age": int(age),
-        "Tenure": int(tenure),
-        "Balance": float(balance),
-        "NumOfProducts": int(products),
-        "HasCrCard": 1 if has_card == "Yes" else 0,
-        "IsActiveMember": 1 if active_member == "Yes" else 0,
-        "EstimatedSalary": float(salary),
-    }
-
-    customer = build_customer_record({**user_inputs, "Geography": "France" if no_geography else geography})
-
-    if no_geography:
-        model_input = customer.drop(columns=["Geography"])
-        probability = float(no_geo_model.predict_proba(model_input)[0][1])
-        prediction = int(probability >= no_geo_threshold)
-        st.info("No geography provided — using the geography-free model variant.")
-    else:
-        probability = float(model.predict_proba(customer)[0][1])
-        prediction = int(probability >= threshold)
-
-    st.divider()
-
-    risk_class = "risk-high" if prediction == 1 else "risk-low"
-    metric_col1, metric_col2 = st.columns(2)
-    with metric_col1:
-        st.markdown(
-            f"<div class='metric-card {risk_class}'><p>Churn Probability</p><h2>{probability * 100:.2f}%</h2></div>",
-            unsafe_allow_html=True,
-        )
-    with metric_col2:
-        label = "Likely to Churn" if prediction == 1 else "Not Likely to Churn"
-        st.markdown(
-            f"<div class='metric-card {risk_class}'><p>Prediction</p><h2>{label}</h2></div>",
-            unsafe_allow_html=True,
-        )
-    st.write("")
-
-    if prediction == 1:
-        st.error("This customer is predicted as high churn risk.")
-    else:
-        st.success("This customer is predicted as lower churn risk.")
-
-    st.subheader("Possible Reasons" if prediction == 1 else "Customer Risk Notes")
-    for reason in explain_prediction(user_inputs, probability, no_geography):
-        st.markdown(f"<div class='card'>{reason}</div>", unsafe_allow_html=True)
-
-    with st.expander("🔧 Engineered features used internally"):
-        st.dataframe(customer.drop(columns=["Geography"] if no_geography else []), use_container_width=True)
-
-
-@st.cache_data
-def load_clean_data() -> pd.DataFrame:
-    return pd.read_csv(ROOT / "data" / "processed" / "churn_clean.csv")
-
-
-def churn_rate_by(df: pd.DataFrame, column: str) -> pd.DataFrame:
-    return (
-        df.groupby(column)["Exited"]
-        .mean()
-        .mul(100)
-        .round(2)
-        .rename("churn_rate_%")
-        .to_frame()
+if page == "🔮 Churn Prediction":
+    st.markdown(
+        """
+        <div class="hero">
+            <h1>Bank Customer Churn Prediction</h1>
+            <p>Enter customer details to estimate churn risk using the trained ML model.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
+    model_bundle = load_model(str(MODEL_PATH))
+    model = model_bundle["pipeline"]
+    threshold = model_bundle["threshold"]
 
-st.divider()
-st.header("📊 Churn Insights from the Dataset")
+    no_geo_bundle = load_model(str(NO_GEO_MODEL_PATH))
+    no_geo_model = no_geo_bundle["pipeline"]
+    no_geo_threshold = no_geo_bundle["threshold"]
 
-df_clean = load_clean_data()
+    st.subheader("📋 Customer Details")
 
-overall = round(df_clean["Exited"].mean() * 100, 2)
-st.metric("Overall churn rate", f"{overall}%")
+    with st.form("customer_form"):
+        col1, col2, col3 = st.columns(3)
 
-insight_col1, insight_col2 = st.columns(2)
-with insight_col1:
-    st.subheader("Churn rate by Geography")
-    st.bar_chart(churn_rate_by(df_clean, "Geography"))
-    st.subheader("Churn rate by Gender")
-    st.bar_chart(churn_rate_by(df_clean, "Gender"))
-    st.subheader("Churn rate by Active Membership")
-    st.bar_chart(churn_rate_by(df_clean, "IsActiveMember"))
-with insight_col2:
-    st.subheader("Churn rate by Age Group")
-    st.bar_chart(churn_rate_by(df_clean, "age_group"))
-    st.subheader("Churn rate by Credit Score Band")
-    st.bar_chart(churn_rate_by(df_clean, "credit_score_band"))
-    st.subheader("Churn rate by Number of Products")
-    st.bar_chart(churn_rate_by(df_clean, "NumOfProducts"))
+        with col1:
+            credit_score = st.number_input("Credit Score", min_value=300, max_value=850, value=650)
+            geography = st.selectbox("Geography", ["France", "Germany", "Spain", "Not specified"])
+            gender = st.selectbox("Gender", ["Female", "Male"])
+            age = st.number_input("Age", min_value=18, max_value=100, value=40)
+
+        with col2:
+            tenure = st.number_input("Tenure", min_value=0, max_value=10, value=3)
+            balance = st.number_input("Balance", min_value=0.0, value=75000.0, step=1000.0)
+            products = st.selectbox("Number of Products", [1, 2, 3, 4])
+
+        with col3:
+            has_card = st.selectbox("Has Credit Card", ["Yes", "No"])
+            active_member = st.selectbox("Is Active Member", ["Yes", "No"])
+            salary = st.number_input("Estimated Salary", min_value=0.0, value=100000.0, step=1000.0)
+
+        submitted = st.form_submit_button("Predict Churn")
+
+    if submitted:
+        no_geography = geography == "Not specified"
+        user_inputs = {
+            "CreditScore": int(credit_score),
+            "Geography": None if no_geography else geography,
+            "Gender": gender,
+            "Age": int(age),
+            "Tenure": int(tenure),
+            "Balance": float(balance),
+            "NumOfProducts": int(products),
+            "HasCrCard": 1 if has_card == "Yes" else 0,
+            "IsActiveMember": 1 if active_member == "Yes" else 0,
+            "EstimatedSalary": float(salary),
+        }
+
+        customer = build_customer_record({**user_inputs, "Geography": "France" if no_geography else geography})
+
+        if no_geography:
+            model_input = customer.drop(columns=["Geography"])
+            probability = float(no_geo_model.predict_proba(model_input)[0][1])
+            prediction = int(probability >= no_geo_threshold)
+            st.info("No geography provided — using the geography-free model variant.")
+        else:
+            probability = float(model.predict_proba(customer)[0][1])
+            prediction = int(probability >= threshold)
+
+        st.divider()
+
+        risk_class = "risk-high" if prediction == 1 else "risk-low"
+        metric_col1, metric_col2 = st.columns(2)
+        with metric_col1:
+            st.markdown(
+                f"<div class='metric-card {risk_class}'><p>Churn Probability</p><h2>{probability * 100:.2f}%</h2></div>",
+                unsafe_allow_html=True,
+            )
+        with metric_col2:
+            label = "Likely to Churn" if prediction == 1 else "Not Likely to Churn"
+            st.markdown(
+                f"<div class='metric-card {risk_class}'><p>Prediction</p><h2>{label}</h2></div>",
+                unsafe_allow_html=True,
+            )
+        st.write("")
+
+        if prediction == 1:
+            st.error("This customer is predicted as high churn risk.")
+        else:
+            st.success("This customer is predicted as lower churn risk.")
+
+        st.subheader("Possible Reasons" if prediction == 1 else "Customer Risk Notes")
+        for reason in explain_prediction(user_inputs, probability, no_geography):
+            st.markdown(f"<div class='card'>{reason}</div>", unsafe_allow_html=True)
+
+        with st.expander("🔧 Engineered features used internally"):
+            st.dataframe(customer.drop(columns=["Geography"] if no_geography else []), width="stretch")
+
+else:
+    st.markdown(
+        """
+        <div class="hero">
+            <h1>Churn Insights</h1>
+            <p>Explore patterns from the cleaned customer dataset.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    df_clean = load_clean_data().copy()
+    df_clean["churn_label"] = df_clean["Exited"].map({0: "Stayed", 1: "Churned"})
+
+    overall = round(df_clean["Exited"].mean() * 100, 2)
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Customers", f"{len(df_clean):,}")
+    c2.metric("Churned", f"{int(df_clean['Exited'].sum()):,}")
+    c3.metric("Churn rate", f"{overall}%")
+    c4.metric("Avg balance", f"€{df_clean['Balance'].mean():,.0f}")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        fig_pie = px.pie(
+            df_clean, names="churn_label", title="Churn vs Retained",
+            color="churn_label", color_discrete_map={"Churned": "#dc2626", "Stayed": "#2563eb"},
+            hole=0.4,
+        )
+        st.plotly_chart(fig_pie, width="stretch")
+
+        fig_box = px.box(
+            df_clean, x="Geography", y="Balance", color="churn_label",
+            title="Balance Distribution by Geography",
+            color_discrete_map={"Churned": "#dc2626", "Stayed": "#2563eb"},
+        )
+        st.plotly_chart(fig_box, width="stretch")
+
+        rate_geo = df_clean.groupby("age_group", observed=True)["Exited"].mean().mul(100).reset_index()
+        fig_bar = px.bar(
+            rate_geo, x="age_group", y="Exited", title="Churn Rate by Age Group (%)",
+            color="Exited", color_continuous_scale="Blues",
+        )
+        st.plotly_chart(fig_bar, width="stretch")
+
+    with col2:
+        fig_hist = px.histogram(
+            df_clean, x="Age", color="churn_label", barmode="overlay",
+            title="Age Distribution by Churn",
+            color_discrete_map={"Churned": "#dc2626", "Stayed": "#2563eb"},
+        )
+        st.plotly_chart(fig_hist, width="stretch")
+
+        fig_scatter = px.scatter(
+            df_clean.sample(min(2000, len(df_clean)), random_state=42),
+            x="CreditScore", y="Age", color="churn_label", opacity=0.5,
+            title="Credit Score vs Age (colored by churn)",
+            color_discrete_map={"Churned": "#dc2626", "Stayed": "#2563eb"},
+        )
+        st.plotly_chart(fig_scatter, width="stretch")
+
+        rate_prod = df_clean.groupby("NumOfProducts")["Exited"].mean().mul(100).reset_index()
+        fig_donut = px.funnel(
+            rate_prod, x="Exited", y="NumOfProducts",
+            title="Churn Rate by Number of Products (%)",
+        )
+        st.plotly_chart(fig_donut, width="stretch")
