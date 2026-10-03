@@ -157,3 +157,43 @@ if submitted:
 
     st.subheader("Engineered Features Used Internally")
     st.dataframe(customer.drop(columns=["Geography"] if no_geography else []), use_container_width=True)
+
+
+@st.cache_data
+def load_clean_data() -> pd.DataFrame:
+    return pd.read_csv(ROOT / "data" / "processed" / "churn_clean.csv")
+
+
+def churn_rate_by(df: pd.DataFrame, column: str) -> pd.DataFrame:
+    return (
+        df.groupby(column)["Exited"]
+        .mean()
+        .mul(100)
+        .round(2)
+        .rename("churn_rate_%")
+        .to_frame()
+    )
+
+
+st.divider()
+st.header("Churn Insights from the Dataset")
+df_clean = load_clean_data()
+
+overall = round(df_clean["Exited"].mean() * 100, 2)
+st.metric("Overall churn rate", f"{overall}%")
+
+insight_col1, insight_col2 = st.columns(2)
+with insight_col1:
+    st.subheader("Churn rate by Geography")
+    st.bar_chart(churn_rate_by(df_clean, "Geography"))
+    st.subheader("Churn rate by Gender")
+    st.bar_chart(churn_rate_by(df_clean, "Gender"))
+    st.subheader("Churn rate by Active Membership")
+    st.bar_chart(churn_rate_by(df_clean, "IsActiveMember"))
+with insight_col2:
+    st.subheader("Churn rate by Age Group")
+    st.bar_chart(churn_rate_by(df_clean, "age_group"))
+    st.subheader("Churn rate by Credit Score Band")
+    st.bar_chart(churn_rate_by(df_clean, "credit_score_band"))
+    st.subheader("Churn rate by Number of Products")
+    st.bar_chart(churn_rate_by(df_clean, "NumOfProducts"))
